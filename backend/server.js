@@ -4,7 +4,7 @@ import cors from "cors"
 import dotenv from "dotenv"
 import http from "http";
 import { Server } from "socket.io"
-import authRoutes from "./routes/modules.js"
+import authRoutes from "./routes/auth.js"
 import moduleRoutes from "./routes/modules.js"
 import chatRoutes from "./routes/chat.js"
 
@@ -29,6 +29,15 @@ app.use("/api/chat", chatRoutes);
 mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log('MongoDB connected'))
 .catch((err) => console.log('MongoDB error:', err));
+
+io.on('connection', (socket) => {
+    console.log('A user connected:', socket.id);
+
+    socket.on('joinRoom', (room) => {
+        socket.join(room);
+        console.log(`User ${socket.id} joined room ${room}`);
+    });
+});
 
 
 const PORT = process.env.PORT || 5000;
