@@ -1,0 +1,48 @@
+import mongoose from "mongoose";
+
+const moduleSchema= new mongoose.Schema(
+    {
+        title: {
+            type: String,
+            required: [true, "Title is required."],
+            trim:true,
+            maxlength: [100, "Title cannot exceed 100 characters."],
+        },
+        description: {
+            type: String,
+            required: [true, "Description is required."],
+            trim:true,
+            maxlength: [500, "Description cannot exceed 500 characters."],
+        },
+        content: {
+            type: String,
+            required: [true, "Content is required."],
+        },
+        visibility: {
+            type: String,
+            enum: ['public', 'privater'],
+            default: 'public',
+        },
+        tags: {
+            type: [String],
+            default: [],
+        },
+        creator: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref:'User',
+            required: true,
+        },
+    },
+    {timestamps: true}
+);
+
+moduleSchema.index(
+    {
+        title: 'text',
+        description: 'text',
+        tags: 'text'
+    }
+);
+
+const Module= mongoose.model('Module', moduleSchema);
+export default Module;
