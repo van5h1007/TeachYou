@@ -26,6 +26,12 @@ app.use("/api/auth", authRoutes);
 app.use("/api/modules", moduleRoutes);
 app.use("/api/chat", chatRoutes);
 
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  console.log('Body:', req.body);
+  next();
+});
+
 mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log('MongoDB connected'))
 .catch((err) => console.log('MongoDB error:', err));
@@ -40,5 +46,5 @@ io.on('connection', (socket) => {
 });
 
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
