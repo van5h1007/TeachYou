@@ -6,7 +6,7 @@ A full-stack web application for educators and students to create, manage, and s
 
 - Educators can create public or private study modules with tags and descriptions
 - Students can browse and read public modules
-- Both roles can chat in real-time across multiple rooms
+- Both roles can chat in real time across multiple rooms
 - JWT-based authentication with role-based access control
 - Full text search across modules by title, description, and tags
 
