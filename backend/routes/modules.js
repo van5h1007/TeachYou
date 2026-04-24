@@ -1,18 +1,15 @@
 import express from "express";
 import Module from "../models/Module.js";
 import { protect, educatorOnly } from "../middleware/auth.js";
+import { upload } from '../config/cloudinary.js';
+import { io, onlineUsers } from '../server.js';
 
 const router = express.Router();
 
 router.get("/", protect, async (req, res) => {
   try {
     const { search, tag } = req.query;
-
     let query = {};
-
-    if (req.user.role === "student") {
-      query.visibility = "public";
-    }
     if (search) {
       query.$text = { $search: search };
     }
@@ -21,35 +18,57 @@ router.get("/", protect, async (req, res) => {
     }
 
     const modules = await Module.find(query)
-      .populate("creator", "name email")
+      .populate("creator", "name email role")
       .sort({ createdAt: -1 });
 
+    const modulesWithAccess= modules.map((mod) => {
+      const modObj= mod.toObjects();
+      if(mod.visibility=== 'private'){
+        const hasAccess=
+              mod.creator._id.toString() === req.user._id.toString() ||
+              mod.allowedUsers.some((u) => u.toString() === req.user._id.toString());
+        const hasRequested= mod.accessRequests.some(
+          (r) => r.user.toString() === req,user._id.toString()
+        );
+        modObj.hasAccess= hasAccess;
+        modObj.hasRequested= hasRequested;
+      }
+      else{
+        modObj.hasAccess= true;
+        modObj.hasRequested= false;
+      }
+      return modObj;
+    });
     res.status(200).json(modules);
-  } catch (error) {
+  } 
+  catch (error) {
     res.status(500).json({ message: "Server error.", error: error.message });
   }
 });
 
 router.get("/:id", protect, async (req, res) => {
   try {
-    const module = await Module.findById(req.params.id).populate(
-      "creator",
-      "name email"
-    );
+    const module = await Module.findById(req.params.id)
+    .populate("creator", "name email")
+    .populate("allowedUsers", "name email")
+    .populate("accessRequests.user", "name email");
 
     if (!module) {
       return res.status(404).json({ message: "Module not found." });
     }
+    const isCreator = module.creator._id.toString() === req.user._id.toString();
+    const isAllowed = module.allowedUsers.some(
+      (u) => u._id.toString() === req.user._id.toString()
+    );
 
-    if (
-      module.visibility === "private" &&
-      module.creator._id.toString() !== req.user._id.toString()
-    ) {
+
+    if (module.visibility === "private" && !isCreator && !isAllowed ) {
       return res.status(403).json({ message: "Access denied." });
     }
 
     res.status(200).json(module);
-  } catch (error) {
+  } 
+  catch (error) {
     res.status(500).json({ message: "Server error.", error: error.message });
   }
 });
@@ -74,7 +93,8 @@ router.post("/", protect, educatorOnly, async (req, res) => {
     });
 
     res.status(201).json(module);
-  } catch (error) {
+  } 
+  catch (error) {
     res.status(500).json({ message: "Server error.", error: error.message });
   }
 });
@@ -126,9 +146,143 @@ router.delete("/:id", protect, educatorOnly, async (req, res) => {
     await module.deleteOne();
 
     res.status(200).json({ message: "Module deleted successfully." });
-  } catch (error) {
+  } 
+  catch (error) {
     res.status(500).json({ message: "Server error.", error: error.message });
   }
 });
+
+router.post('/:id/request', protect, async (req, res) => {
+  try {
+    const module = await Module.findById(req.params.id).populate('creator', 'name');
+    if (!module) return res.status(404).json({ message: 'Module not found.' });
+
+    const alreadyRequested = module.accessRequests.some(
+      (r) => r.user.toString() === req.user._id.toString()
+    );
+    if (alreadyRequested) {
+      return res.status(400).json({ message: 'Access already requested.' });
+    }
+
+    const alreadyAllowed = module.allowedUsers.some(
+      (u) => u.toString() === req.user._id.toString()
+    );
+    if (alreadyAllowed) {
+      return res.status(400).json({ message: 'You already have access.' });
+    }
+
+    module.accessRequests.push({ user: req.user._id });
+    await module.save();
+
+    const educatorSocketId = onlineUsers.get(module.creator._id.toString());
+    if (educatorSocketId) {
+      io.to(educatorSocketId).emit('accessRequest', {
+        moduleId: module._id,
+        moduleTitle: module.title,
+        student: { _id: req.user._id, name: req.user.name },
+      });
+    }
+
+    res.status(200).json({ message: 'Access requested successfully.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.', error: error.message });
+  }
+});
+
+router.post('/:id/grant/:userId', protect, educatorOnly, async (req, res) => {
+  try {
+    const module = await Module.findById(req.params.id);
+    if (!module) return res.status(404).json({ message: 'Module not found.' });
+    if (module.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not your module.' });
+    }
+
+    module.accessRequests = module.accessRequests.filter(
+      (r) => r.user.toString() !== req.params.userId
+    );
+    if (!module.allowedUsers.includes(req.params.userId)) {
+      module.allowedUsers.push(req.params.userId);
+    }
+    await module.save();
+
+    const studentSocketId = onlineUsers.get(req.params.userId);
+    if (studentSocketId) {
+      io.to(studentSocketId).emit('accessGranted', {
+        moduleId: module._id,
+        moduleTitle: module.title,
+      });
+    }
+
+    res.status(200).json({ message: 'Access granted.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.', error: error.message });
+  }
+});
+
+router.post('/:id/deny/:userId', protect, educatorOnly, async (req, res) => {
+  try {
+    const module = await Module.findById(req.params.id);
+    if (!module) return res.status(404).json({ message: 'Module not found.' });
+    if (module.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not your module.' });
+    }
+
+    module.accessRequests = module.accessRequests.filter(
+      (r) => r.user.toString() !== req.params.userId
+    );
+    await module.save();
+
+    const studentSocketId = onlineUsers.get(req.params.userId);
+    if (studentSocketId) {
+      io.to(studentSocketId).emit('accessDenied', {
+        moduleId: module._id,
+        moduleTitle: module.title,
+      });
+    }
+
+    res.status(200).json({ message: 'Access denied.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.', error: error.message });
+  }
+});
+
+router.delete('/:id/revoke/:userId', protect, educatorOnly, async (req, res) => {
+  try {
+    const module = await Module.findById(req.params.id);
+    if (!module) return res.status(404).json({ message: 'Module not found.' });
+    if (module.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not your module.' });
+    }
+    module.allowedUsers = module.allowedUsers.filter(
+      (u) => u.toString() !== req.params.userId
+    );
+    await module.save();
+    res.status(200).json({ message: 'Access revoked.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.', error: error.message });
+  }
+});
+
+router.post('/:id/upload', protect, educatorOnly, upload.single('file'), async (req, res) => {
+  try {
+    const module = await Module.findById(req.params.id);
+    if (!module) return res.status(404).json({ message: 'Module not found.' });
+    if (module.creator.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not your module.' });
+    }
+
+    module.attachments.push({
+      filename: req.file.originalname,
+      url: req.file.path,
+      fileType: req.file.mimetype,
+    });
+    await module.save();
+
+    res.status(200).json({ message: 'File uploaded.', attachments: module.attachments });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.', error: error.message });
+  }
+});
+
 
 export default router;

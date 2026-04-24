@@ -10,6 +10,7 @@ const ModuleDetail = () => {
   const [module, setModule] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const fetch = async () => {
@@ -32,6 +33,24 @@ const ModuleDetail = () => {
       navigate('/modules');
     } catch (err) {
       alert(err.response?.data?.message || 'Delete failed');
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const { data } = await API.post(`/modules/${id}/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setModule((prev) => ({ ...prev, attachments: data.attachments }));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -66,12 +85,12 @@ const ModuleDetail = () => {
           <p className="text-sm text-gray-500">{module.description}</p>
         </div>
         {isOwner && (
-          <div className="flex gap-2 ml-4 flex-shrink-0">
+          <div className="flex gap-2 ml-4 flex-shrink-0 flex-wrap justify-end">
             <Link
-              to={`/modules/${id}/edit`}
-              className="text-sm border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50"
+              to={`/modules/${id}/requests`}
+              className="text-sm border border-purple-200 text-purple-600 px-3 py-1.5 rounded-lg hover:bg-purple-50"
             >
-              Edit
+              Requests {module.accessRequests?.length > 0 && `(${module.accessRequests.length})`}
             </Link>
             <button
               onClick={handleDelete}
@@ -97,8 +116,60 @@ const ModuleDetail = () => {
         </div>
       </div>
 
-      <div className="bg-gray-50 rounded-xl p-6 text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
+      <div className="bg-gray-50 rounded-xl p-6 text-sm text-gray-800 leading-relaxed whitespace-pre-wrap mb-6">
         {module.content}
+      </div>
+
+      {module.attachments?.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-sm font-medium text-gray-700 mb-3">Attachments</h2>
+          <div className="flex flex-col gap-2">
+            {module.attachments.map((file, i) => (
+              <a
+                key={i}
+                href={file.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 border border-gray-200 rounded-lg px-4 py-3 hover:bg-gray-50 text-sm text-gray-700"
+              >
+                <span className="text-lg">
+                  {file.fileType?.includes('pdf') ? '📄' :
+                   file.fileType?.includes('image') ? '🖼️' : '📎'}
+                </span>
+                <span className="flex-1 truncate">{file.filename}</span>
+                <span className="text-xs text-purple-600">Open</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {isOwner && (
+        <div className="border border-dashed border-gray-300 rounded-xl p-4 text-center">
+          <p className="text-sm text-gray-500 mb-2">Add attachment</p>
+          <label className="cursor-pointer">
+            <span className="text-sm bg-purple-50 text-purple-700 border border-purple-200 px-4 py-2 rounded-lg hover:bg-purple-100">
+              {uploading ? 'Uploading...' : 'Choose file'}
+            </span>
+            <input
+              type="file"
+              className="hidden"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png"
+            />
+          </label>
+          <p className="text-xs text-gray-400 mt-2">PDF, Word, PowerPoint, Images</p>
+        </div>
+      )}
+
+      <div className="mt-6 border-t border-gray-100 pt-4">
+        <Link
+          to={`/chat/${id}`}
+          className="inline-flex items-center gap-2 text-sm bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+        >
+          💬 Open module chat
+        </Link>
       </div>
     </div>
   );

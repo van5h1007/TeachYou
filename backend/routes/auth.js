@@ -1,6 +1,8 @@
 import express from "express";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import passport from "passport";
+
 
 const router= express.Router();
 
@@ -29,8 +31,8 @@ router.post("/register", async(req,res) => {
         if (!passwordRegex.test(password)) {
             return res.status(400).json({
             message: "Password must include uppercase, lowercase, number, and special character.",
-        });
-}
+           });
+        }
         const userExists = await User.findOne({email});
         if(userExists){
             return res.status(400).json({message: "User already exists."});
@@ -93,5 +95,25 @@ router.get("/me", async(req,res) => {
         res.status(401).json({message: "Token is not valid.", error: error.message});
     }
 });
+
+router.get('/google', passport.authenticate('google', {
+  scope: ['profile', 'email'],
+}));
+
+router.get('/google/callback',
+  passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL}/login` }),
+  (req, res) => {
+    const token = generateToken(req.user._id);
+    const user = {
+      _id: req.user._id,
+      name: req.user.name,
+      email: req.user.email,
+      role: req.user.role,
+      avatar: req.user.avatar,
+      token,
+    };
+    res.redirect(`${process.env.CLIENT_URL}/auth/callback?data=${encodeURIComponent(JSON.stringify(user))}`);
+  }
+);
 
 export default router;

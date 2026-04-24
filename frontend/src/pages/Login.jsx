@@ -15,6 +15,10 @@ const Login = () => {
     if (user) navigate('/modules');
   };
 
+  const handleGoogle = () => {
+    window.location.href = 'http://localhost:8000/api/auth/google';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="bg-white border border-gray-200 rounded-2xl p-8 w-full max-w-sm">
@@ -58,6 +62,20 @@ const Login = () => {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+
+        <div className="flex items-center gap-3 my-4">
+          <div className="flex-1 h-px bg-gray-200" />
+          <span className="text-xs text-gray-400">or</span>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
+
+        <button
+          onClick={handleGoogle}
+          className="w-full flex items-center justify-center gap-2 border border-gray-200 rounded-lg py-2 text-sm text-gray-700 hover:bg-gray-50"
+        >
+          <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
+          Continue with Google
+        </button>
 
         <p className="text-xs text-gray-500 text-center mt-4">
           Don't have an account?{' '}

@@ -27,14 +27,22 @@ const userSchema = new mongoose.Schema(
         values: ["student", "educator"],
         message: "Role not available",
       },
-      required: [true, "Role is required."],
+      default: null,
+    },
+    googleId: {
+      type:String,
+      default: null,
+    },
+    avatar: {
+      type:String,
+      default:null,
     },
   },
   { timestamps: true }
 );
 
 userSchema.pre("save", async function () {
-  if (!this.isModified("password")) return;
+  if (!this.isModified("password") || this.password) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });

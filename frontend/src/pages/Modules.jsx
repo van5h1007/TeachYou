@@ -35,6 +35,14 @@ const Modules = () => {
     fetchModules();
   };
 
+  const handleRequestSent = (moduleId) => {
+    setModules((prev) =>
+      prev.map((m) =>
+        m._id === moduleId ? { ...m, hasRequested: true } : m
+      )
+    );
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
       <div className="flex items-center justify-between mb-6">
@@ -79,7 +87,7 @@ const Modules = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {modules.map((mod) => (
-            <ModuleCard key={mod._id} module={mod} />
+            <ModuleCard key={mod._id} module={mod} onRequestSent={handleRequestSent} />
           ))}
         </div>
       )}

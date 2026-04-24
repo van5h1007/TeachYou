@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 
 const moduleSchema= new mongoose.Schema(
     {
@@ -32,6 +32,35 @@ const moduleSchema= new mongoose.Schema(
             ref:'User',
             required: true,
         },
+        allowedUSers: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+            },
+        ],
+        accessRequests: [
+            {
+                user: {
+                    type:mongoose.Schema.Types.ObjectId,
+                    ref: 'User',
+                },
+                requestedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+            },
+        ],
+        attachments: [
+            {
+                filename: String,
+                url: String,
+                fileType: String,
+                uploadedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+            },
+        ],
     },
     {timestamps: true}
 );

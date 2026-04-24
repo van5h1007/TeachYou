@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -23,10 +24,15 @@ const Navbar = () => {
           <Link to="/chat" className="text-sm text-gray-500 hover:text-gray-800">
             Chat
           </Link>
+          <NotificationBell />
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-sm font-medium">
-              {user.name.charAt(0).toUpperCase()}
-            </div>
+            {user.avatar ? (
+              <img src={user.avatar} className="w-8 h-8 rounded-full object-cover" alt={user.name} />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-sm font-medium">
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+            )}
             <span className="text-sm text-gray-600">{user.name}</span>
             <button
               onClick={handleLogout}
