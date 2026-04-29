@@ -101,8 +101,13 @@ router.get('/google', passport.authenticate('google', {
 }));
 
 router.get('/google/callback',
-  passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL}/login` }),
+  passport.authenticate('google', { 
+    failureRedirect: `${process.env.CLIENT_URL}/login`,
+    session: false,
+  }),
   (req, res) => {
+    console.log('Google callback hit');
+    console.log('User:', req.user);
     const token = generateToken(req.user._id);
     const user = {
       _id: req.user._id,
@@ -115,5 +120,27 @@ router.get('/google/callback',
     res.redirect(`${process.env.CLIENT_URL}/auth/callback?data=${encodeURIComponent(JSON.stringify(user))}`);
   }
 );
+router.patch('/role', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token.' });
 
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { role } = req.body;
+
+    if (!['student', 'educator'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role.' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      decoded.id,
+      { role },
+      { new: true }
+    );
+
+    res.status(200).json({ role: user.role });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error.', error: error.message });
+  }
+});
 export default router;

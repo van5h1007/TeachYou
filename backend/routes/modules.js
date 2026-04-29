@@ -2,7 +2,7 @@ import express from "express";
 import Module from "../models/Module.js";
 import { protect, educatorOnly } from "../middleware/auth.js";
 import { upload } from '../config/cloudinary.js';
-import { io, onlineUsers } from '../server.js';
+import { getIO, onlineUsers } from '../config/socket.js';
 
 const router = express.Router();
 
@@ -22,13 +22,13 @@ router.get("/", protect, async (req, res) => {
       .sort({ createdAt: -1 });
 
     const modulesWithAccess= modules.map((mod) => {
-      const modObj= mod.toObjects();
+      const modObj= mod.toObject();
       if(mod.visibility=== 'private'){
         const hasAccess=
               mod.creator._id.toString() === req.user._id.toString() ||
               mod.allowedUsers.some((u) => u.toString() === req.user._id.toString());
         const hasRequested= mod.accessRequests.some(
-          (r) => r.user.toString() === req,user._id.toString()
+          (r) => r.user.toString() === req.user._id.toString()
         );
         modObj.hasAccess= hasAccess;
         modObj.hasRequested= hasRequested;
@@ -39,7 +39,8 @@ router.get("/", protect, async (req, res) => {
       }
       return modObj;
     });
-    res.status(200).json(modules);
+    res.status(200).json(modulesWithAccess);
+    console.log(`User ${req.user._id} fetched modules. Search: ${search}, Tag: ${tag}`);
   } 
   catch (error) {
     res.status(500).json({ message: "Server error.", error: error.message });
@@ -69,6 +70,7 @@ router.get("/:id", protect, async (req, res) => {
     res.status(200).json(module);
   } 
   catch (error) {
+    console.log('Module detail error:', error.message);
     res.status(500).json({ message: "Server error.", error: error.message });
   }
 });
@@ -93,6 +95,7 @@ router.post("/", protect, educatorOnly, async (req, res) => {
     });
 
     res.status(201).json(module);
+    console.log(`Module created: ${module._id} by user ${req.user._id}`);
   } 
   catch (error) {
     res.status(500).json({ message: "Server error.", error: error.message });
@@ -176,7 +179,7 @@ router.post('/:id/request', protect, async (req, res) => {
 
     const educatorSocketId = onlineUsers.get(module.creator._id.toString());
     if (educatorSocketId) {
-      io.to(educatorSocketId).emit('accessRequest', {
+      getIO().to(educatorSocketId).emit('accessRequest', {
         moduleId: module._id,
         moduleTitle: module.title,
         student: { _id: req.user._id, name: req.user.name },
@@ -207,7 +210,7 @@ router.post('/:id/grant/:userId', protect, educatorOnly, async (req, res) => {
 
     const studentSocketId = onlineUsers.get(req.params.userId);
     if (studentSocketId) {
-      io.to(studentSocketId).emit('accessGranted', {
+      getIO().to(studentSocketId).emit('accessGranted', {
         moduleId: module._id,
         moduleTitle: module.title,
       });
@@ -234,7 +237,7 @@ router.post('/:id/deny/:userId', protect, educatorOnly, async (req, res) => {
 
     const studentSocketId = onlineUsers.get(req.params.userId);
     if (studentSocketId) {
-      io.to(studentSocketId).emit('accessDenied', {
+      getIO().to(studentSocketId).emit('accessDenied', {
         moduleId: module._id,
         moduleTitle: module.title,
       });
