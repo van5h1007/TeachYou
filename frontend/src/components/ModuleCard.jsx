@@ -20,11 +20,12 @@ const ModuleCard = ({ module, onRequestSent }) => {
   };
 
   const isPrivate = module.visibility === 'private';
-  const isOwner = user?._id === module.creator?._id;
+  const isOwner = user?._id?.toString() === module.creator?._id?.toString(); // ✅ fixed
+  const canView = !isPrivate || isOwner || module.hasAccess; // ✅ public always viewable
 
   return (
     <div className={`border rounded-xl p-4 transition-colors ${
-      isPrivate && !module.hasAccess
+      !canView
         ? 'border-gray-200 bg-gray-50'
         : 'border-gray-200 hover:border-purple-300'
     }`}>
@@ -34,7 +35,7 @@ const ModuleCard = ({ module, onRequestSent }) => {
             ? 'bg-green-100 text-green-800'
             : 'bg-amber-100 text-amber-800'
         }`}>
-          {isPrivate && !module.hasAccess ? '🔒 Private' : module.visibility}
+          {!canView ? '🔒 Private' : module.visibility}
         </span>
         <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-800 font-medium">
           {module.creator?.role}
@@ -43,7 +44,7 @@ const ModuleCard = ({ module, onRequestSent }) => {
 
       <h3 className="font-medium text-gray-900 mb-1">{module.title}</h3>
 
-      {isPrivate && !module.hasAccess ? (
+      {!canView ? (
         <p className="text-sm text-gray-400 mb-3 italic">
           This module is private. Request access to view it.
         </p>
@@ -67,7 +68,7 @@ const ModuleCard = ({ module, onRequestSent }) => {
           <span className="text-xs text-gray-500">{module.creator?.name}</span>
         </div>
 
-        {isPrivate && !module.hasAccess && !isOwner ? (
+        {!canView && !isOwner ? (
           module.hasRequested ? (
             <span className="text-xs text-amber-600 font-medium">Requested</span>
           ) : (
