@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import API from '../api/axios';
@@ -8,6 +8,11 @@ const ChooseRole = () => {
   const [loading, setLoading] = useState(false);
   const { user, setUser } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) navigate('/login');
+    if (user?.role) navigate('/modules');
+  }, [user]);
 
   const handleSubmit = async () => {
     setLoading(true);

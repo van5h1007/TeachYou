@@ -1,18 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, loading, error } = useAuth();
+  const { login, loading, error, user } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.role) navigate('/modules');
+    if (user && !user.role) navigate('/choose-role');
+  }, [user]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     await login(email, password);
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (user) navigate('/modules');
+    const u = JSON.parse(localStorage.getItem('user'));
+    if (u) {
+      if (!u.role) navigate('/choose-role');
+      else navigate('/modules');
+    }
   };
 
   const handleGoogle = () => {

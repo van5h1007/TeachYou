@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -6,8 +6,13 @@ const Register = () => {
   const [form, setForm] = useState({
     name: '', email: '', password: '', role: 'student',
   });
-  const { register, loading, error } = useAuth();
+  const { register, loading, error, user } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.role) navigate('/modules');
+    if (user && !user.role) navigate('/choose-role');
+  }, [user]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -16,8 +21,11 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     await register(form.name, form.email, form.password, form.role);
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (user) navigate('/modules');
+    const u = JSON.parse(localStorage.getItem('user'));
+    if (u) {
+      if (!u.role) navigate('/choose-role');
+      else navigate('/modules');
+    }
   };
 
   const handleGoogle = () => {
