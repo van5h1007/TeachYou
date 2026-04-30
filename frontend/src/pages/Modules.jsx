@@ -18,6 +18,7 @@ const Modules = () => {
       if (search) params.search = search;
       if (tag) params.tag = tag;
       const { data } = await API.get('/modules', { params });
+      console.log('API response:', data); 
       setModules(data);
     } catch (err) {
       console.error(err);
